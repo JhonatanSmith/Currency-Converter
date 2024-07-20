@@ -1,3 +1,13 @@
+
+# Web scrapying
+from bs4 import BeautifulSoup # modulo de BeautifulSoup
+import requests
+import ssl
+import json
+
+# Data manipulation
+import pandas as pd
+import numpy as np
 # 1st step: We will ask for the games we are interested in
 def search_games():
     """
@@ -94,8 +104,8 @@ for game, details in tr_games_info.items():
 
 df = pd.json_normalize(data)
 
-df.head()
-
+# TYR currency
+# This URL will be the same so it requieres no changes
 url = "https://www.google.com/search?q=lira+turca+a+dolar&oq=lira+turca+a+dolar&gs_lcrp=EgZjaHJvbWUqBggAEEUYOzIGCAAQRRg7MgYIARAuGEDSAQgyMzU4ajBqMagCALACAA&sourceid=chrome&ie=UTF-8"
 headers={
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -107,15 +117,24 @@ r = requests.get(url, headers=headers)
 soup = BeautifulSoup(r.text, "lxml")
 requested_price = soup.find_all("span",class_="DFlfde SwHCTb")
 dolar_tr = [price['data-value'] for price in requested_price]
+dolar_tr
 dolar_tr = float(dolar_tr[0])
 print("A dolar is equal to {} TRY".format(dolar_tr))
 
+# Data trasnformation
 df["Price (TRY)"]=df["Price (TRY)"].str.replace("TL", "")
+df["Price (USD)"]=df["Price (USD)"].str.replace("FREE", "0")
 df["Price (TRY)"]=df["Price (TRY)"].str.replace("FREE", "0")
 df["Price (TRY)"]=df["Price (TRY)"].str.replace(",", "")
 df["Price (USD)"]=df["Price (USD)"].str.replace("$", "")
+
+
+
 df["Price (USD)"] = df["Price (USD)"].astype(float)
 df["Price (TRY)"] = df["Price (TRY)"].astype(float)
 df["Price (TRY - USD)"] = round(df["Price (TRY)"] * dolar_tr,2)
 df["Difference (US tore- TR store)"] = round( df["Price (USD)"] -df["Price (TRY)"] * dolar_tr,2)
-df.to_csv("../data/processed/games_data.csv", index=False)
+df = df.iloc[:,[0,1,3,5,6,2]]
+
+# A final look c:
+df.head()
