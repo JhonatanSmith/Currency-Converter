@@ -1,4 +1,0 @@
-python_version = 3.10.12
-pandas
-numpy
-bs4

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Prices</title>
+    <style>
+        table.data {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table.data th, table.data td {
+            border: 1px solid black;
+            padding: 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ingrese los nombres de los juegos</h1>
+    <form method="post">
+        <div id="game-inputs">
+            <input type="text" name="games">
+        </div>
+        <button type="button" onclick="addInput()">Agregar otro juego</button>
+        <input type="submit" value="Buscar">
+    </form>
+    {% if tables %}
+        <h2>Resultados del DataFrame</h2>
+        {% for table in tables %}
+            {{ table|safe }}
+        {% endfor %}
+    {% endif %}
+    <script>
+        function addInput() {
+            var div = document.createElement('div');
+            div.innerHTML = '<input type="text" name="games">';
+            document.getElementById('game-inputs').appendChild(div);
+        }
+    </script>
+</body>
+</html>

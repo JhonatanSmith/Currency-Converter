@@ -1,0 +1,110 @@
+from flask import Flask, render_template, request
+from bs4 import BeautifulSoup
+import requests
+import pandas as pd
+
+app = Flask(__name__)
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        items = request.form.getlist('games')
+        us_urls = [f"https://psdeals.net/us-store/search?search_query={i.replace(' ', '+')}" for i in items]
+        tr_urls = [f"https://psdeals.net/tr-store/search?search_query={i.replace(' ', '+')}" for i in items]
+
+        us_games_info = fetch_game_info(us_urls, items, 'USD')
+        tr_games_info = fetch_game_info(tr_urls, items, 'TRY')
+
+        # Merge the information
+        for game, details in tr_games_info.items():
+            for detail in details:
+                for us_detail in us_games_info.get(game, []):
+                    if detail['Platform'] == us_detail['Platform']:
+                        detail['Price (USD)'] = us_detail['Price (USD)']
+
+        # Convert the dictionary to a DataFrame
+        data = []
+        for game, details in tr_games_info.items():
+            for detail in details:
+                detail['Game'] = game  # Ensure the game name from the Turkish store is kept
+                data.append(detail)
+
+        df = pd.json_normalize(data)
+
+        # TYR currency
+        url = "https://www.google.com/search?q=lira+turca+a+dolar&oq=lira+turca+a+dolar&gs_lcrp=EgZjaHJvbWUqBggAEEUYOzIGCAAQRRg7MgYIARAuGEDSAQgyMzU4ajBqMagCALACAA&sourceid=chrome&ie=UTF-8"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive'
+        }
+        r = requests.get(url, headers=headers)
+        soup = BeautifulSoup(r.text, "lxml")
+        requested_price = soup.find_all("span", class_="DFlfde SwHCTb")
+        dolar_tr = [price['data-value'] for price in requested_price]
+        dolar_tr = float(dolar_tr[0])
+        print("A dolar is equal to {} TRY".format(dolar_tr))
+
+        # Data transformation
+        df["Price (TRY)"] = df["Price (TRY)"].str.replace("TL", "")
+        df["Price (USD)"] = df["Price (USD)"].str.replace("FREE", "0")
+        df["Price (TRY)"] = df["Price (TRY)"].str.replace("FREE", "0")
+        df["Price (TRY)"] = df["Price (TRY)"].str.replace(",", "")
+        df["Price (USD)"] = df["Price (USD)"].str.replace("$", "")
+
+        df["Price (USD)"] = df["Price (USD)"].astype(float)
+        df["Price (TRY)"] = df["Price (TRY)"].astype(float)
+        df["Price (TRY - USD)"] = round(df["Price (TRY)"] * dolar_tr, 2)
+        df["Difference (US tore- TR store)"] = round(df["Price (USD)"] - df["Price (TRY)"] * dolar_tr, 2)
+        df = df.iloc[:, [0, 1, 3, 5, 6, 2]]
+
+        return render_template('index.html', tables=[df.to_html(classes='data')], titles=df.columns.values)
+    return render_template('index.html')
+
+def fetch_game_info(urls, items, region):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive'
+    }
+
+    games_info = {}
+    for url, item in zip(urls, items):
+        try:
+            r = requests.get(url, headers=headers)
+            r.raise_for_status()
+            print(f"Fetched data for {item} ({region}): Status code {r.status_code}")
+
+            soup = BeautifulSoup(r.text, "lxml")
+            product_details = []
+
+            products = soup.find_all('div', class_='game-collection-item')
+
+            for product in products:
+                name_tag = product.find('span', class_='game-collection-item-details-title')
+                price_tag = product.find('span', class_='game-collection-item-price')
+                platform_tag = product.find('span', class_='game-collection-item-top-platform')
+
+                if name_tag and price_tag and platform_tag:
+                    name = name_tag.get_text(strip=True)
+                    price = price_tag.get_text(strip=True)
+                    platform = platform_tag.get_text(strip=True)
+                    product_details.append({
+                        'Name': name,
+                        f'Price ({region})': price,
+                        'Platform': platform
+                    })
+
+            games_info[item] = product_details
+
+        except requests.RequestException as e:
+            print(f"Error fetching data for {item} ({region}): {e}")
+            if item not in games_info:
+                games_info[item] = []
+
+    return games_info
+
+if __name__ == '__main__':
+    app.run(debug=True)
