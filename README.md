@@ -36,4 +36,14 @@ And of course, we also have the typical requirements.txt file and the env folder
 
 ## API deployment
 
-Well, i'd like the idea of having something functional and useful. To do that, we will store this program in a free api manager to run and having a functional web page. 
+Well, I'd like the idea of having something functional and useful. To do that, we will store this program in a free API manager to run and have a functional web page. Indeed, I already mounted it on Render (https://render.com/), where I can store my personal projects.
+
+If you're interested in giving this app a try, here is the link:
+
+https://currency-converter-tfs2.onrender.com
+
+Be aware of something: as Render offers a free service, it might be shut down if I haven't activated it via command. But I assure you, it works more than just fine c:
+
+## Final words
+
+This was a project for meere entertaingin and personal use. I do not authorize the distribution of these program with commercial purposes. Althou i would like to, cant imagine how to be honest. 
