@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-# Setting to get Pics folder rigth
+# Setting to get Pics folder right
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'pics')
 
 @app.route('/pics/<filename>')
@@ -18,6 +18,11 @@ def uploaded_file(filename):
 def index():
     if request.method == 'POST':
         items = request.form.getlist('games')
+        items = [i for i in items if i.strip()]  # Remove empty or whitespace-only items
+        
+        if not items:
+            return render_template('index.html', message="No se ha insertado ningún juego para buscar.")
+
         us_urls = [f"https://psdeals.net/us-store/search?search_query={i.replace(' ', '+')}" for i in items]
         tr_urls = [f"https://psdeals.net/tr-store/search?search_query={i.replace(' ', '+')}" for i in items]
 
@@ -32,9 +37,15 @@ def index():
 
         data = []
         for game, details in tr_games_info.items():
-            for detail in details:
-                detail['Game'] = game
-                data.append(detail)
+            if details:  # Check if details list is not empty
+                for detail in details:
+                    detail['Game'] = game
+                    data.append(detail)
+            else:
+                data.append({'Game': game, 'Platform': 'N/A', 'Price (TRY)': 'N/A', 'Price (USD)': 'N/A'})
+
+        if not data:
+            return render_template('index.html', message="No se han encontrado resultados para los juegos buscados.")
 
         df = pd.json_normalize(data)
 
@@ -52,16 +63,15 @@ def index():
         dolar_tr = float(dolar_tr[0])
         print("A dolar is equal to {} TRY".format(dolar_tr))
 
-        df["Price (TRY)"] = df["Price (TRY)"].str.replace("TL", "")
-        df["Price (USD)"] = df["Price (USD)"].str.replace("FREE", "0")
-        df["Price (TRY)"] = df["Price (TRY)"].str.replace("FREE", "0")
-        df["Price (TRY)"] = df["Price (TRY)"].str.replace(",", "")
-        df["Price (USD)"] = df["Price (USD)"].str.replace("$", "")
+        # Clean and convert price columns
+        df["Price (TRY)"] = df["Price (TRY)"].str.replace("TL", "").str.replace("FREE", "0").str.replace(",", "").replace('N/A', '0')
+        df["Price (USD)"] = df["Price (USD)"].str.replace("FREE", "0").str.replace("$", "").replace('N/A', '0')
 
-        df["Price (USD)"] = df["Price (USD)"].astype(float)
-        df["Price (TRY)"] = df["Price (TRY)"].astype(float)
+        df["Price (USD)"] = pd.to_numeric(df["Price (USD)"], errors='coerce').fillna(0)
+        df["Price (TRY)"] = pd.to_numeric(df["Price (TRY)"], errors='coerce').fillna(0)
+        
         df["Price (TRY - USD)"] = round(df["Price (TRY)"] * dolar_tr, 2)
-        df["Difference (US tore- TR store)"] = round(df["Price (USD)"] - df["Price (TRY)"] * dolar_tr, 2)
+        df["Difference (US store - TR store)"] = round(df["Price (USD)"] - df["Price (TRY)"] * dolar_tr, 2)
         df = df.iloc[:, [0, 1, 3, 5, 6, 2]]
 
         return render_template('index.html', tables=[df.to_html(classes='data')], titles=df.columns.values)
@@ -102,12 +112,23 @@ def fetch_game_info(urls, items, region):
                         'Platform': platform
                     })
 
+            if not product_details:
+                product_details.append({
+                    'Name': 'Not found',
+                    f'Price ({region})': 'N/A',
+                    'Platform': 'N/A'
+                })
+
             games_info[item] = product_details
 
         except requests.RequestException as e:
             print(f"Error fetching data for {item} ({region}): {e}")
             if item not in games_info:
-                games_info[item] = []
+                games_info[item] = [{
+                    'Name': 'No encontrado',
+                    f'Price ({region})': 'N/A',
+                    'Platform': 'N/A'
+                }]
 
     return games_info
 
