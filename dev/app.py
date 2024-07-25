@@ -1,10 +1,19 @@
-from flask import Flask, render_template, request
-from bs4 import BeautifulSoup
-import requests
+from flask import Flask, render_template, request, send_from_directory
+import os
 import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
+# Setting to get Pics folder rigth
+app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'pics')
+
+@app.route('/pics/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# Main route
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
@@ -15,23 +24,20 @@ def index():
         us_games_info = fetch_game_info(us_urls, items, 'USD')
         tr_games_info = fetch_game_info(tr_urls, items, 'TRY')
 
-        # Merge the information
         for game, details in tr_games_info.items():
             for detail in details:
                 for us_detail in us_games_info.get(game, []):
                     if detail['Platform'] == us_detail['Platform']:
                         detail['Price (USD)'] = us_detail['Price (USD)']
 
-        # Convert the dictionary to a DataFrame
         data = []
         for game, details in tr_games_info.items():
             for detail in details:
-                detail['Game'] = game  # Ensure the game name from the Turkish store is kept
+                detail['Game'] = game
                 data.append(detail)
 
         df = pd.json_normalize(data)
 
-        # TYR currency
         url = "https://www.google.com/search?q=lira+turca+a+dolar&oq=lira+turca+a+dolar&gs_lcrp=EgZjaHJvbWUqBggAEEUYOzIGCAAQRRg7MgYIARAuGEDSAQgyMzU4ajBqMagCALACAA&sourceid=chrome&ie=UTF-8"
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -46,7 +52,6 @@ def index():
         dolar_tr = float(dolar_tr[0])
         print("A dolar is equal to {} TRY".format(dolar_tr))
 
-        # Data transformation
         df["Price (TRY)"] = df["Price (TRY)"].str.replace("TL", "")
         df["Price (USD)"] = df["Price (USD)"].str.replace("FREE", "0")
         df["Price (TRY)"] = df["Price (TRY)"].str.replace("FREE", "0")
