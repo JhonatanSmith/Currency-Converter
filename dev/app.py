@@ -76,7 +76,6 @@ def index():
 
         return render_template('index.html', tables=[df.to_html(classes='data')], titles=df.columns.values)
     return render_template('index.html')
-
 def fetch_game_info(urls, items, region):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -99,13 +98,14 @@ def fetch_game_info(urls, items, region):
 
             for product in products:
                 name_tag = product.find('span', class_='game-collection-item-details-title')
+                price_discount_tag = product.find('span', class_='game-collection-item-price-discount')
                 price_tag = product.find('span', class_='game-collection-item-price')
                 platform_tag = product.find('span', class_='game-collection-item-top-platform')
 
-                if name_tag and price_tag and platform_tag:
+                if name_tag and platform_tag:
                     name = name_tag.get_text(strip=True)
-                    price = price_tag.get_text(strip=True)
                     platform = platform_tag.get_text(strip=True)
+                    price = price_discount_tag.get_text(strip=True) if price_discount_tag else price_tag.get_text(strip=True)
                     product_details.append({
                         'Name': name,
                         f'Price ({region})': price,
