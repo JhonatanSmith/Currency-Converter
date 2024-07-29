@@ -81,7 +81,7 @@ def index():
             
             df["Price (TRY - USD)"] = round(df["Price (TRY)"] * dolar_tr, 2)
             df["Difference (US store - TR store)"] = round(df["Price (USD)"] - df["Price (TRY - USD)"], 2)
-            df = df.iloc[:, [0, 1, 2, 4, 5, 3]]  # Reorder columns to match your preference
+            df = df.iloc[:, [0, 1, 4, 3,5,2]]  # Reorder columns to match your preference
 
             return render_template('index.html', tables=[df.to_html(classes='data')], titles=df.columns.values)
         except KeyError as e:
