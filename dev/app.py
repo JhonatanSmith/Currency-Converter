@@ -161,4 +161,5 @@ def fetch_game_info(urls, items, region):
 
 if __name__ == '__main__':
     # Using any IP to connect to this data when deployed
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
